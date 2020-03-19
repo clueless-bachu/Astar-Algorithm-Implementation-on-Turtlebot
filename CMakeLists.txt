@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 3.10.2)
+project (A_star)
+
+# Add project cmake modules to path.
+#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
+
+# Set build type
+#set(CMAKE_BUILD_TYPE Debug)
+
+# Import opencv 
+find_package(OpenCV 4.0.0 REQUIRED)
+#include opencv directories
+include_directories(${OpenCV_INCLUDE_DIRS})
+
+add_executable(astar Astar_rigid.cpp)
+target_link_libraries(astar ${OpenCV_LIBS})
