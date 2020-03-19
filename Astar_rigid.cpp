@@ -1,25 +1,9 @@
 #include<bits/stdc++.h>
 #include "opencv2/opencv.hpp"
+#include<cmath>
+#define PI 3.14159265
 
 
-
-// get_children(state, actions, action_costs, m_map, stepsize, theta)
-// {
-// 	  Explores the child nodes
-//     input:
-//     state: current coordinates
-//     actions: specified set od actions possible
-//     action_costs: costs of actions
-//     m_map: modified map considering radius and clearance (??)
-//     stepsize: stepsize of movement of radius
-//     theta: angle between action set at each node
-//     returns:
-//     children: dictionary which maps the child coordinates to cost (??)
-//     total_cost: total cost of the child node (??)
-    
-    
-//     // code
-// }
 
 std::vector<float> img_to_cart(float i, float j)
 {
@@ -169,7 +153,7 @@ bool inrectangle(std::vector<float> state,float r=0,float c=0)
     return l1[0] * x + l1[1] <= y && y <= l2[0] * x + l2[1] && l3[0] * x + l3[1] >= y && y >= l4[0] * x + l4[1];
 }
 
-bool state_validity(std::vector<float> state, float r=0, float c=0)
+bool in_obstacle(std::vector<float> state, float r=0, float c=0)
 {
 	/*
 	Checks whether the state is inside the obstacle space
@@ -208,20 +192,41 @@ std::vector<float> bin(std::vector<float> state, float scale1 = 1.0, float scale
 	return state;
 }
 
-// m_map(map, radius, clearance)
-// {
-// 	/*
-// 	Gives modified obstacle space
-// 	input:
-// 	map: original obstacle space
-// 	radius: radius of rigid robot
-// 	clearance: clearance of rigid robot
-// 	returns:
-// 	m_map: modified map considering radius and clearance (??)
-// 	*/
-	
-// 	// code	
-// }
+std::vector<std::vector<float>> get_children(std::vector<float> state,float r=0, float c=0, 
+    float dist = 3,float theta = PI/6)
+{
+    /*
+    Explores the child nodes
+    input:
+    state: current coordinates
+    actions: specified set od actions possible
+    action_costs: costs of actions
+    m_map: modified map considering radius and clearance (??)
+    stepsize: stepsize of movement of radius
+    theta: angle between action set at each node
+    returns:
+    children: dictionary which maps the child coordinates to cost (??)
+    total_cost: total cost of the child node (??)
+    */
+    
+    float angles[] = {0,theta,2*theta,-theta, -2*theta};
+    std::vector<std::vector<float>> children;
+
+    for(int i=0; i< 5;++i)
+    {
+        std::vector<float> new_state(3);
+        new_state[0] = state[0]+ dist*cos(state[2])*cos(angles[i])-dist*sin(state[2])*sin(angles[i]);
+        new_state[1] = state[0]+ dist*sin(state[2])*cos(angles[i])+dist*cos(state[2])*sin(angles[i]);
+        new_state[2] = state[2]+angles[i];
+        if(!in_obstacle(new_state,r,c))
+        {
+            children.push_back(new_state);
+        }
+    }
+    return children;
+
+}
+
 
 // A_star(start, goal, threshold, m_map, actions, action_costs, heuristic)
 // {
@@ -244,15 +249,26 @@ std::vector<float> bin(std::vector<float> state, float scale1 = 1.0, float scale
 
 int main()
 {
-	float r,c,xs,ys,thetas,xg,yg,thetag;
-	std::cout<<"Please input radius and clearance as \"r c\" (without the quotes)\n";
-	std::cin>>r>>c;
-	std::cout<<
-	"Please input starting configuration as \"x y theta\" (without the quotes) where theta is in radians\n";
-	std::cin>>xs>>ys>>thetas;
-	std::cout<<
-	"Please input goal configuration as \"x y theta\" (without the quotes) where theta is in radians\n";
-	std::cin>>xg>>yg>>thetag;
+	// float r,c,xs,ys,thetas,xg,yg,thetag;
+	// std::cout<<"Please input radius and clearance as \"r c\" (without the quotes)\n";
+	// std::cin>>r>>c;
+	// std::cout<<
+	// "Please input starting configuration as \"x y theta\" (without the quotes) where theta is in radians\n";
+	// std::cin>>xs>>ys>>thetas;
+	// std::cout<<
+	// "Please input goal configuration as \"x y theta\" (without the quotes) where theta is in radians\n";
+	// std::cin>>xg>>yg>>thetag;
+
+    std::vector<float> v = {10,10,PI};
+
+    std::vector<std::vector<float> > children = get_children(v);
+
+    std::cout<<children.size()<<std::endl;
+    for(auto i: children)
+    {
+        for(auto j: i) std::cout<<j<<" ";
+        std::cout<<std::endl;
+    }
 
     return 0;
 }
