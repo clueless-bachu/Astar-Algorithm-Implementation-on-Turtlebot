@@ -1,3 +1,0 @@
-/home/vasista/Desktop/Implementation-of-Astar-algorithm/CMakeFiles/rebuild_cache.dir
-/home/vasista/Desktop/Implementation-of-Astar-algorithm/CMakeFiles/astar.dir
-/home/vasista/Desktop/Implementation-of-Astar-algorithm/CMakeFiles/edit_cache.dir
