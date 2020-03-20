@@ -15,14 +15,6 @@ struct VectorHash {
 };
 
 
-struct cost_comparator
-{
-    bool operator()(std::tuple<float, std::vector<float>> const& a, std::tuple<float, std::vector<float>> const& b) const
-    {
-
-        return  std::get<1>(a)>std::get<1>(b);
-    }
-};
 using vector3d = std::vector<std::vector<std::vector<float> > >;
 using vector_set = std::unordered_set<std::vector<float>, VectorHash>;
 using vector_map = std::unordered_map<std::vector<float>,std::vector<float>, VectorHash>;
@@ -234,10 +226,10 @@ std::vector<std::vector<float>> get_children(std::vector<float> state,float r=0,
     state: current coordinates
     r: radius of the robot
     c: clearance of the robot
-    dist: distance (??) 
+    dist: stepsize  
     theta: angle between action set at each node
     returns:
-    children: dictionary which maps the child coordinates to cost (??)
+    children: 2D vector of floats
     */
     
     float angles[] = {0,theta,2*theta,-theta, -2*theta};
@@ -282,13 +274,16 @@ std::tuple<vector_map,  vector3d, std::vector<float> > a_star(std::vector<float>
    /*
    Explores the child nodes
    input:
-   start: current coordinates
+   start: start coordinates
    goal: coordinates to reach
    r: radius of the robot
    c: clearance of the robot
-   dist: distance (??) 
-   theta: angle between action set at each node      
+   dist: stepsize distance
+   theta: angle between action set at each node 
+   thresh: threshold distance around the goal
    returns:
+   a tuple 'path' which consists of 'bactrack' (which maps node to its parent node), 'memory' (list of all the nodes explored) 
+   and 'cur_state'(the last node that was explored)
    */
 
 	vector_set visited;
