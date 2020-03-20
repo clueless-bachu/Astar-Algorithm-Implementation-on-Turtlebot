@@ -4,7 +4,33 @@
 #define PI 3.14159265
 #include<unordered_set>
 
+struct VectorHash {
+    size_t operator()(const std::vector<float>& v) const {
+        std::hash<int> hasher;
+        size_t seed = 0;
+        for (float i : v) {
+            seed ^= hasher(i) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+        }
+        return seed;
+    }
+};
 
+// using cost = std::tuple<float, std::vector<float>> ;
+
+struct cost_comparator
+{
+    bool operator()(std::tuple<float, std::vector<float>> const& a, std::tuple<float, std::vector<float>> const& b) const
+    {
+
+        return  std::get<1>(a)>std::get<1>(b);
+    }
+};
+
+using vector_set = std::unordered_set<std::vector<float>, VectorHash>;
+using vector_map = std::unordered_map<std::vector<float>,std::vector<float>, VectorHash>;
+using priority_q = std::priority_queue<std::tuple<float, std::vector<float>>,
+ std::vector<std::tuple<float, std::vector<float>>>, std::greater<std::tuple<float, std::vector<float>>>>;
+using tuple = std::tuple<float, std::vector<float>>;
 
 std::vector<float> img_to_cart(float i, float j)
 {
@@ -169,11 +195,12 @@ bool in_obstacle(std::vector<float> state, float r=0, float c=0)
 	return 
 	(x-225)*(x-225) + (y-150)*(y-150) <= (25+r+c)*(25+r+c) // for the circle
 	|| (x-150)*(x-150)/((40+r+c)*(40+r+c))+(y-100)*(y-100)/((20+r+c)*(20+r+c)) <= 1 // for the ellipse
-	|| indiamond(state,r,c) || inconcave1(state,r,c) || inconcave2(state,r,c) || inrectangle(state,r,c);
+	|| indiamond(state,r,c) || inconcave1(state,r,c) || inconcave2(state,r,c) || inrectangle(state,r,c)
+	|| x<=0 || x>=300 || y<=0 || y>=200;
 	
 }
 
-std::vector<float> bin(std::vector<float> state, float scale1 = 1.0, float scale2= 0.02)
+std::vector<float> bin(std::vector<float> state, float scale1 = .5, float scale2= 6/PI)
 {
 	/*
 	computes the bin a state belongs to in the configuration space
@@ -192,7 +219,7 @@ std::vector<float> bin(std::vector<float> state, float scale1 = 1.0, float scale
 }
 
 std::vector<std::vector<float>> get_children(std::vector<float> state,float r=0, float c=0, 
-    float dist = 3,float theta = PI/6)
+    float dist = 1,float theta = PI/6)
 {
     /*
     Explores the child nodes
@@ -213,8 +240,11 @@ std::vector<std::vector<float>> get_children(std::vector<float> state,float r=0,
     {
         std::vector<float> new_state(3);
         new_state[0] = state[0]+ dist*cos(state[2])*cos(angles[i])-dist*sin(state[2])*sin(angles[i]);
-        new_state[1] = state[0]+ dist*sin(state[2])*cos(angles[i])+dist*cos(state[2])*sin(angles[i]);
+        new_state[1] = state[1]+ dist*sin(state[2])*cos(angles[i])+dist*cos(state[2])*sin(angles[i]);
         new_state[2] = state[2]+angles[i];
+        if(new_state[2]<-PI) new_state[2] += 2*PI;
+        else if(new_state[2]>PI) new_state[2] -=2*PI; 
+
         if(!in_obstacle(new_state,r,c))
         {
             children.push_back(new_state);
@@ -224,24 +254,25 @@ std::vector<std::vector<float>> get_children(std::vector<float> state,float r=0,
 
 }
 
-float heuristic(std::vector<float> pos, std::vector<float> goal)
+float euclidean_dist(std::vector<float> pos, std::vector<float> goal)
 {
 	/*
-    Calculates the eucledian distance rom the goal 
+    Calculates the euclidean distance rom the goal 
 	input:
 	pos: the current postion of the robot
 	goal: the destination t reach
 	returns:
-	h: the eucledian distance between goal and current position of robot
+	h: the euclidean distance between goal and current position of robot
 	*/
-	float h = sqrt((goal[0]-pos[0])^2 +(goal[1]-pos[1])^2);
-	return h;
+	return pow(pow((goal[0]-pos[0]),2) +pow((goal[1]-pos[1]),2),0.5);
 	
 }
 
-std::vector<std::vector<float>> a_star(std::vector<float> start, std::vector<float> goal, float r=0, float c=0, float dist = 3,  float theta = PI/6)
+
+std::tuple<vector_map, std::vector<std::vector<float> > > a_star(std::vector<float> start, std::vector<float> goal,
+ float r=0, float c=0, float dist = 1,  float theta = PI/6, float thresh =1.5)
 {   
-   /* 
+   /*
    Explores the child nodes
    input:
    start: current coordinates
@@ -251,76 +282,84 @@ std::vector<std::vector<float>> a_star(std::vector<float> start, std::vector<flo
    dist: distance (??) 
    theta: angle between action set at each node      
    returns:
-   
    */
-   std::vector<float> memory;
-   std::vector<float> backtrack;
-   queue <float> nodes[]={start};
-    
-   std::vector<float> costs(3);
-   unordered_set<std::vector<float>>state_cost;
-   std::vector<float> costs(3);
-   costs[0] = std::numeric_limits<double>::infinity() ; // cost to come
-   costs[1] =  heuristic(cord, goal); //hueristic cost
-   costs[2] = costs[0]+costs[1]; //total cost
-   state_cost.insert(make_pair(cord, costs))
-   
-   unordered_set <std::vector<float>>visited;
-     
-   while( !(nodes.empty()))
-   {
-   	make_pair(float cost, std::vector<float> cord) = nodes.pop();
-   	if (cord == goal)
-   	{
-   		break;
-	   }
-	else
+
+	vector_set visited;
+	std::vector<std::vector<float>> memory,children;
+	vector_map backtrack;
+	priority_q q;
+	float cost;
+	std::vector<float> cur_state;
+	tuple a(0,start);
+	q.push(a);
+
+	if(in_obstacle(goal) || in_obstacle(start))
 	{
-		visited.insert(cord);
-		memory.push_back(cord);
-		std::vector<std::vector<float>> child_cord = get_children(cord, r, c, dist, theta)[0];
-		std::vector<std::vector<float>> child_cost = get_children(cord, r, c, dist, theta)[1];
-		for (i=0; i<child_cord.size(); ++i)
-		{
-		 if (visited.find(child_cord) != visited.end())	
-		 {
-		 	if (state_cost(child_cord, costs[2]) >= child_cost+ heurisitic(child_cord,goal))
-		 	{
-		 	 state_cost(child_cord, costs[2]) = child_cost+ heurisitic(child_cord,goal);
-		 	 backtrack.push_back(child_cord);
-			 }
-			nodes.push(child_cord);
-		 }
-		}
-	   }
+		std::cout<<"Check your inputs"<<std::endl;
+		std::tuple<vector_map, std::vector<std::vector<float> > > path(backtrack, memory);
+		return path;
 	}
-	return backtrack;
+	unsigned int count =0 ;
+	while(!q.empty())
+	{
+  		std::tie (cost, cur_state) = q.top();
+  		q.pop();
+  		++count;
+  		if(euclidean_dist(cur_state,goal)<=thresh) 
+  		{
+  			std::cout<<"Goal Reached!!!"<<std::endl;
+  			break;
+  		}
+  		else if(visited.find(bin(cur_state))!=visited.end()) continue;
+  		visited.insert(bin(cur_state));
+  		memory.push_back(cur_state);
+
+  		children = get_children(cur_state,r,c, dist, theta);
+  		for(auto child: children)
+  		{
+  			
+  			float child_cost = cost+1+euclidean_dist(child,goal);
+  			tuple node(child_cost, child);
+  			q.push(node);
+  			backtrack.insert(std::pair<std::vector<float>,std::vector<float>>(child,cur_state));
+  		}
+
+	}
+	std::cout<<"Final State: "<<cur_state[0]<<"\t"<<cur_state[1]<<"\t"<<cur_state[2]<<"\n"<<"Number of Nodes Explored: "
+	<<count<<std::endl;
+
+	std::tuple<vector_map, std::vector<std::vector<float> > > path(backtrack, memory);
+	return path;
 }
-
-
 
 int main()
 {
-	// float r,c,xs,ys,thetas,xg,yg,thetag;
-	// std::cout<<"Please input radius and clearance as \"r c\" (without the quotes)\n";
-	// std::cin>>r>>c;
-	// std::cout<<
-	// "Please input starting configuration as \"x y theta\" (without the quotes) where theta is in radians\n";
-	// std::cin>>xs>>ys>>thetas;
-	// std::cout<<
-	// "Please input goal configuration as \"x y theta\" (without the quotes) where theta is in radians\n";
-	// std::cin>>xg>>yg>>thetag;
+	float r,c, thresh,dist,ang;
+	std::vector<float> start(3), goal(3);
+	std::cout<<"Please input radius and clearance as \"r c\" (without the quotes)\n";
+	std::cin>>r>>c;
+	std::cout<<
+	"Please input starting configuration as \"x y theta\" (without the quotes) where theta is in degrees\n";
+	std::cin>>start[0]>>start[1]>>start[2];
+	std::cout<<
+	"Please input goal configuration as \"x y theta\" (without the quotes) where theta is in degrees\n";
+	std::cin>>goal[0]>>goal[1]>>goal[2];
+	std::cout<<"Please input the threshold for reaching near the goal\n";
+	std::cin>>thresh;
+	std::cout<<"Please input the step size and angle of turn in degrees for reaching near the goal\n";
+	std::cin>>dist>>ang;
+	ang = ang*PI/180;
+	start[2] = start[2]*PI/180;
 
-    std::vector<float> v = {10,10,PI};
-
-    std::vector<std::vector<float> > children = get_children(v);
-
-    std::cout<<children.size()<<std::endl;
-    for(auto i: children)
-    {
-        for(auto j: i) std::cout<<j<<" ";
-        std::cout<<std::endl;
-    }
-
+    vector_map backtrack;
+    std::vector<std::vector<float>> memory;
+    auto start_time = std::chrono::high_resolution_clock::now();
+    std::tie(backtrack, memory) = a_star(start, goal,r,c,dist,ang,thresh);
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start_time); 
+  
+    std::cout << "Time taken by function: "
+         << duration.count() << " seconds" << std::endl; 
+    
     return 0;
 }
