@@ -25,6 +25,15 @@ using tuple = std::tuple<float, std::vector<float>>;
 
 cv::Scalar ScalarHSV2BGR(uchar H, uchar S, uchar V)
 {
+    /*
+    Converts HSV to BGR 
+    input:
+    H: Hue
+    S: Saturation
+    V: Value
+    returns:
+    the BGR value
+    */
     cv::Mat rgb;
     cv::Mat hsv(1,1, CV_8UC3, cv::Scalar(H,S,V));
     cv::cvtColor(hsv, rgb, cv::COLOR_HSV2BGR);
@@ -33,7 +42,7 @@ cv::Scalar ScalarHSV2BGR(uchar H, uchar S, uchar V)
 
 std::vector<float> img_to_cart(float i, float j)
 {
-	/*
+    /*
     Converts an image coordinates to cartesian coordinates
     input:
     i: row of image
