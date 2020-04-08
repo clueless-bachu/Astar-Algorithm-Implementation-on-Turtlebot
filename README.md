@@ -1,4 +1,4 @@
-# Implementation of Astar algorithm
+# Implementation of A star algorithm
 
 The code is written in C++ in astar_rigid.cpp
 
@@ -29,3 +29,6 @@ make
 To run the program run ```./astar``` in the command line
 
 
+### Video simulation
+
+A video of the output can be seen at https://youtu.be/wbpHSscLVFs.
