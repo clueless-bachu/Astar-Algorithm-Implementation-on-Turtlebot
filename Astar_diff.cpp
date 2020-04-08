@@ -3,9 +3,12 @@
 #include<cmath>
 #define PI 3.14159265
 
+using namespace std;
+using namespace cv;
+
 struct VectorHash {
-    size_t operator()(const std::vector<float>& v) const {
-        std::hash<float> hasher;
+    size_t operator()(const vector<float>& v) const {
+        hash<float> hasher;
         size_t seed = 0;
         for (float i : v) {
             seed ^= hasher(i) + 0x9e3779b9 + (seed<<6) + (seed>>2);
@@ -17,29 +20,29 @@ struct VectorHash {
 
 struct cost_comparator
 {
-    bool operator()(std::tuple<float, std::vector<float>> const& a, std::tuple<float, std::vector<float>> const& b) const
+    bool operator()(tuple<float, vector<float>> const& a, tuple<float, vector<float>> const& b) const
     {
 
-        return  std::get<1>(a)>std::get<1>(b);
+        return  get<1>(a)>get<1>(b);
     }
 };
-using vector3d = std::vector<std::vector<std::vector<float> > >;
-using vector_set = std::unordered_set<std::vector<float>, VectorHash>;
-using vector_map = std::unordered_map<std::vector<float>,std::vector<float>, VectorHash>;
-using priority_q = std::priority_queue<std::tuple<float, std::vector<float>>,
- std::vector<std::tuple<float, std::vector<float>>>, std::greater<std::tuple<float, std::vector<float>>>>;
-using tuple = std::tuple<float, std::vector<float>>;
+using vector3d = vector<vector<vector<float> > >;
+using vector_set = unordered_set<vector<float>, VectorHash>;
+using vector_map = unordered_map<vector<float>,vector<float>, VectorHash>;
+using priority_q = priority_queue<tuple<float, vector<float>>,
+ vector<tuple<float, vector<float>>>, greater<tuple<float, vector<float>>>>;
+using tuple = tuple<float, vector<float>>;
 
 
-cv::Scalar ScalarHSV2BGR(uchar H, uchar S, uchar V)
+Scalar ScalarHSV2BGR(uchar H, uchar S, uchar V)
 {
-    cv::Mat rgb;
-    cv::Mat hsv(1,1, CV_8UC3, cv::Scalar(H,S,V));
-    cv::cvtColor(hsv, rgb, cv::COLOR_HSV2BGR);
-    return cv::Scalar(rgb.data[0], rgb.data[1], rgb.data[2]);
+    Mat rgb;
+    Mat hsv(1,1, CV_8UC3, Scalar(H,S,V));
+    cvtColor(hsv, rgb, COLOR_HSV2BGR);
+    return Scalar(rgb.data[0], rgb.data[1], rgb.data[2]);
 }
 
-std::vector<float> img_to_cart(float i, float j)
+vector<float> img_to_cart(float i, float j)
 {
 	/*
     Converts an image coordinates to cartesian coordinates
@@ -50,11 +53,11 @@ std::vector<float> img_to_cart(float i, float j)
     x: x-coordinate in cartesian system
     y: y-coordinate in cartesian system
     */
-    std::vector<float> cart_cords = {j, 200-i};
+    vector<float> cart_cords = {j, 200-i};
     return cart_cords;
 }
 
-std::vector<float> cart_to_img(float x, float y)
+vector<float> cart_to_img(float x, float y)
 {
     /*
     Converts cartesian coordinates to image coordinates
@@ -66,11 +69,11 @@ std::vector<float> cart_to_img(float x, float y)
     j: column of image
     */
 
-	std::vector<float> img_cords = {200-y, x};
+	vector<float> img_cords = {200-y, x};
     return img_cords;
 } 
 
-std::vector<float> get_straight(float x1,float y1,float x2, float y2, float r,float c,bool side=false,bool verbose=false)
+vector<float> get_straight(float x1,float y1,float x2, float y2, float r,float c,bool side=false,bool verbose=false)
 {
 	/*
     Creates a straight line using two points in the cartesian system
@@ -88,15 +91,59 @@ std::vector<float> get_straight(float x1,float y1,float x2, float y2, float r,fl
     float m = (y2-y1)/(x2-x1);
     float c_ = y1 - x1*(y2-y1)/(x2-x1);
     float c1;
-    if(side) c1 = std::pow((r+c)*(1+m*m),0.5)+c_;
-    else c1 = -std::pow((r+c)*(1+m*m),0.5)+c_;
-    if(verbose) std::cout<<m<<" "<<c_<<" "<<c1<<std::endl;
-    std::vector<float> params = {m,c1};
+    if(side) c1 = pow((r+c)*(1+m*m),0.5)+c_;
+    else c1 = -pow((r+c)*(1+m*m),0.5)+c_;
+    if(verbose) cout<<m<<" "<<c_<<" "<<c1<<endl;
+    vector<float> params = {m,c1};
     return params;
 }
 
 // bool insquare1,2,3, inobstacle
-std::vector<float> bin(std::vector<float> state, float scale1 = .5, float scale2= 6/PI)
+bool in_square1(vector<float> state,float r=0,float c=0)
+{
+    //0.25, 1.75->x, 4.25,5.75-> y
+    float x = state[0], y = state[1];
+    return  x>=-5.75-r-c && x<=-4.25+r+c && y>= -0.75-r-c && y<= 0.75+r+c;
+}
+
+bool in_square2(vector<float> state,float r=0,float c=0)
+{
+    //2.25, 3.75->x, 7.45,8.95-> y
+    float x = state[0], y = state[1];
+    return x>=-2.75-r-c && x<=-1.25+r+c && y>= 2.25-r-c && y<= 3.75+r+c;
+}
+
+bool in_square3(vector<float> state,float r=0,float c=0)
+{
+    //0.25, 1.75->x, 4.25,5.75-> y
+    float x = state[0], y = state[1];
+    return x>=4.25-r-c && x<=5.75+r+c && y>= -0.75-r-c && y<= 0.75+r+c;
+}
+
+bool in_obstacle(vector<float> state, float r=0, float c=0)
+{
+    /*
+    Checks whether the state is inside the obstacle space
+    input:
+    state: current coordinates
+    m_map: modified map considering radius and clearance (??)
+    returns:
+    a boolean whether the state is in obstacle space or not
+    */
+    float x =state[0], y=state[1];  
+
+    return 
+    (x)*(x) + (y)*(y) <= (2+r+c)*(2+r+c) || 
+    (x-2)*(x-2) + (y-3)*(y-3) <= (2+r+c)*(2+r+c) ||
+    (x-2)*(x-2) + (y+3)*(y+3) <= (2+r+c)*(2+r+c) ||
+    (x+2)*(x+2) + (y+3)*(y+3) <= (2+r+c)*(2+r+c) ||
+    in_square1(state,r,c)||in_square2(state,r,c)||in_square3(state,r,c)||
+    x<-5-r-c || x>5+r+c||y<-5-r-c||y>5+r+c;
+}
+
+
+
+vector<float> bin(vector<float> state, float scale1 = 0.5, float scale2= 6/PI)
 {
     /*
     computes the bin a state belongs to in the configuration space
@@ -117,7 +164,7 @@ std::vector<float> bin(std::vector<float> state, float scale1 = .5, float scale2
 // get_children
 
 
-float euclidean_dist(std::vector<float> pos, std::vector<float> goal)
+float euclidean_dist(vector<float> pos, vector<float> goal)
 {
     /*
     Calculates the euclidean distance rom the goal 
@@ -132,7 +179,7 @@ float euclidean_dist(std::vector<float> pos, std::vector<float> goal)
 }
 
 
-std::tuple<vector_map,  vector3d, std::vector<float> > a_star(std::vector<float> start, std::vector<float> goal,
+tuple<vector_map,  vector3d, vector<float> > a_star(vector<float> start, vector<float> goal,
  float r=0, float c=0, float dist = 1,  float theta = PI/6, float thresh =1.5)
 {   
    /*
@@ -148,31 +195,31 @@ std::tuple<vector_map,  vector3d, std::vector<float> > a_star(std::vector<float>
    */
 
     vector_set visited;
-    std::vector<std::vector<float>> children;
+    vector<vector<float>> children;
     vector3d memory;
     vector_map backtrack;
     priority_q q;
     float cost;
-    std::vector<float> cur_state;
+    vector<float> cur_state;
     tuple begin(0,start);
     q.push(begin);
 
     if(in_obstacle(goal) || in_obstacle(start))
     {
-        std::cout<<"Check your inputs"<<std::endl;
-        std::vector<float> tmp;
-        std::tuple<vector_map,  vector3d, std::vector<float> > path(backtrack, memory,tmp);
+        cout<<"Check your inputs"<<endl;
+        vector<float> tmp;
+        tuple<vector_map,  vector3d, vector<float> > path(backtrack, memory,tmp);
         return path;
     }
     unsigned int count =0 ;
     while(!q.empty())
     {
-        std::tie (cost, cur_state) = q.top();
+        tie (cost, cur_state) = q.top();
         q.pop();
         
         if(euclidean_dist(cur_state,goal)<=thresh) 
         {
-            std::cout<<"Goal Reached!!!"<<std::endl;\
+            cout<<"Goal Reached!!!"<<endl;\
 
             break;
         }
@@ -185,16 +232,16 @@ std::tuple<vector_map,  vector3d, std::vector<float> > a_star(std::vector<float>
             float child_cost = cost+1+euclidean_dist(child,goal);
             tuple node(child_cost, child);
             q.push(node);
-            backtrack.insert(std::pair<std::vector<float>,std::vector<float>>(child,cur_state));
+            backtrack.insert(pair<vector<float>,vector<float>>(child,cur_state));
         }
         children.push_back(cur_state);
         memory.push_back(children);
         ++count;
 
     }
-    std::cout<<"Final State: ["<<cur_state[0]<<"\t\t"<<cur_state[1]<<"\t\t"<<cur_state[2]*180/PI<<"]\n"<<"Number of Nodes Explored: "
-    <<count<<std::endl;
-    std::tuple<vector_map,  vector3d, std::vector<float> > path(backtrack, memory, cur_state);
+    cout<<"Final State: ["<<cur_state[0]<<"\t\t"<<cur_state[1]<<"\t\t"<<cur_state[2]*180/PI<<"]\n"<<"Number of Nodes Explored: "
+    <<count<<endl;
+    tuple<vector_map,  vector3d, vector<float> > path(backtrack, memory, cur_state);
     return path;
 }
 
@@ -204,25 +251,25 @@ int main()
     float r,c, thresh,dist,ang;
     int scale=4;// For resizing
     float x1,x2,y1,y2;
-    std::vector<float> parent_img,parent_cart,child_img, child_cart;
-    cv::Point_<float> parent,child;
+    vector<float> parent_img,parent_cart,child_img, child_cart;
+    Point_<float> parent,child;
     int speed = 200;
-    std::vector<float> start(3), goal(3), last_node(3);
+    vector<float> start(3), goal(3), last_node(3);
     vector_map backtrack;
     vector3d memory;
 
-    std::cout<<"Please input radius and clearance as \"r c\" (without the quotes)\n";
-    std::cin>>r>>c;
-    std::cout<<
+    cout<<"Please input radius and clearance as \"r c\" (without the quotes)\n";
+    cin>>r>>c;
+    cout<<
     "Please input starting configuration as \"x y theta\" (without the quotes) where theta is in degrees\n";
-    std::cin>>start[0]>>start[1]>>start[2];
-    std::cout<<
+    cin>>start[0]>>start[1]>>start[2];
+    cout<<
     "Please input goal configuration as \"x y theta\" (without the quotes) where theta is in degrees\n";
-    std::cin>>goal[0]>>goal[1]>>goal[2];
-    std::cout<<"Please input the threshold for reaching near the goal\n";
-    std::cin>>thresh;
-    std::cout<<"Please input the step size and angle of turn in degrees for reaching near the goal\n";
-    std::cin>>dist>>ang;
+    cin>>goal[0]>>goal[1]>>goal[2];
+    cout<<"Please input the threshold for reaching near the goal\n";
+    cin>>thresh;
+    cout<<"Please input the step size and angle of turn in degrees for reaching near the goal\n";
+    cin>>dist>>ang;
     
     ang = ang*PI/180;
     start[2] = start[2]*PI/180;
@@ -230,37 +277,37 @@ int main()
 
 //////////////////A* ALGORITHM////////////////////////////////////////////////////////////////////////////////////////////////
     
-    auto start_time = std::chrono::high_resolution_clock::now();
-    std::tie(backtrack, memory, last_node) = a_star(start, goal,r,c,dist,ang,thresh);
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start_time); 
+    auto start_time = chrono::high_resolution_clock::now();
+    tie(backtrack, memory, last_node) = a_star(start, goal,r,c,dist,ang,thresh);
+    auto stop = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::seconds>(stop - start_time); 
 
 
-    std::cout << "Time taken by function: "
-         << duration.count() << " seconds" << std::endl;
+    cout << "Time taken by function: "
+         << duration.count() << " seconds" << endl;
 
 ///////////////////VISUALISATION/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    cv::Mat resized, img(200, 300, CV_8UC3, cv::Scalar(200,200, 200));
-    cv::namedWindow("A* in Action", cv::WINDOW_AUTOSIZE);
+    Mat resized, img(200, 300, CV_8UC3, Scalar(200,200, 200));
+    namedWindow("A* in Action", WINDOW_AUTOSIZE);
 
     for(int i = 0; i < img.rows; i++)
     {
         for(int j = 0; j < img.cols; j++)
         {
-            std::vector<float> cords = img_to_cart(i,j);
-            std::vector<float> state = {cords[0],cords[1],0};
+            vector<float> cords = img_to_cart(i,j);
+            vector<float> state = {cords[0],cords[1],0};
 
             if(in_obstacle(state,r,c))
             {
-                 cv::Vec3b pixel = {0,0,0};
-                 img.at<cv::Vec3b>(i, j)= pixel;
+                 Vec3b pixel = {0,0,0};
+                 img.at<Vec3b>(i, j)= pixel;
             }
         }
     }
 
     
-    cv::resize(img, resized,cv::Size(), scale,scale);
-    // cv::VideoWriter video("output.avi",cv::VideoWriter::fourcc('M','J','P','G'),120, cv::Size(300*scale, 200*scale));
+    resize(img, resized,Size(), scale,scale);
+    // VideoWriter video("output.avi",VideoWriter::fourcc('M','J','P','G'),120, Size(300*scale, 200*scale));
 
     
     for(auto node = 0; node< memory.size(); ++node)
@@ -280,12 +327,12 @@ int main()
             child_img  = cart_to_img(x2,y2);
             child.x = child_img[1]*scale;
             child.y = child_img[0]*scale;
-            cv::line(resized, parent, child,ScalarHSV2BGR((node/speed)%255,255, 255),1);
+            line(resized, parent, child,ScalarHSV2BGR((node/speed)%255,255, 255),1);
             if(!(node%speed))
             {
                 // video.write(resized);
-                cv::imshow("A* in Action", resized);
-                cv::waitKey(1);
+                imshow("A* in Action", resized);
+                waitKey(1);
             }
         }
     }
@@ -301,15 +348,15 @@ int main()
         parent.y = parent_img[0]*scale;
         child.x = child_img[1]*scale;
         child.y = child_img[0]*scale;
-        cv::line(resized, parent, child,cv::Scalar(255,255, 255),2);
+        line(resized, parent, child,Scalar(255,255, 255),2);
         // video.write(resized);
-        cv::imshow("A* in Action", resized);
-        cv::waitKey(1);
+        imshow("A* in Action", resized);
+        waitKey(1);
         goal = child_cart;
     }
     // video.release();
-    cv::imshow("A* in Action", resized);
-    cv::waitKey(0);     
+    imshow("A* in Action", resized);
+    waitKey(0);     
     
     return 0;
 }
