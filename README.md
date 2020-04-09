@@ -1,6 +1,14 @@
 # Implementation of A star algorithm
 
-The code is written in C++ in astar_rigid.cpp
+This project is a part of the coursework for ENPM661: Planning of Autonomous Robots. This project is completed in various phases.
+
+### PHASE 1
+
+ROS was installed in this phase.
+
+### PHASE 2
+
+In this phase, we had to implement A * algorithm on a rigid robot. The code is written in C++ in astar_rigid.cpp
 
 
 ### Dependencies
