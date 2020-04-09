@@ -161,6 +161,7 @@ vector<float> bin(vector<float> state, float scale1 = 0.5, float scale2= 8/PI)
     return state;
 }
 
+  std::vector<std::vector<float>> get_children(std::vector<float> state, std::vector<float> rpm, float r , float L, float c=0, 
     float dist = 1,float theta = PI/8)
 {
     /*
@@ -177,7 +178,7 @@ vector<float> bin(vector<float> state, float scale1 = 0.5, float scale2= 8/PI)
     children: 2D vector of floats
     */
     
-    //float angles[] = {0, theta, 2*theta, 3*theta, 4*theta, -theta, -2*theta, -3*theta}; // 8 action spaces
+    float angles[] = {0, theta, 2*theta, 3*theta, 4*theta, -theta, -2*theta, -3*theta}; // 8 action spaces
     std::vector<std::vector<float>> children;
 	dt = dist;
 	ul = rpm[0];
