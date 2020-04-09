@@ -12,5 +12,5 @@ find_package(OpenCV 4.0.0 REQUIRED)
 #include opencv directories
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-add_executable(astar Astar_rigid.cpp)
+add_executable(astar Astar_diff.cpp)
 target_link_libraries(astar ${OpenCV_LIBS})

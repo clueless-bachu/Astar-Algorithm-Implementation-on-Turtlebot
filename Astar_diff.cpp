@@ -6,6 +6,8 @@
 using namespace std;
 using namespace cv;
 
+
+
 struct VectorHash {
     size_t operator()(const vector<float>& v) const {
         hash<float> hasher;
@@ -31,7 +33,7 @@ using vector_set = unordered_set<vector<float>, VectorHash>;
 using vector_map = unordered_map<vector<float>,vector<float>, VectorHash>;
 using priority_q = priority_queue<tuple<float, vector<float>>,
  vector<tuple<float, vector<float>>>, greater<tuple<float, vector<float>>>>;
-using tuple = tuple<float, vector<float>>;
+using tple = tuple<float, vector<float>>;
 
 
 Scalar ScalarHSV2BGR(uchar H, uchar S, uchar V)
@@ -53,7 +55,7 @@ vector<float> img_to_cart(float i, float j)
     x: x-coordinate in cartesian system
     y: y-coordinate in cartesian system
     */
-    vector<float> cart_cords = {j, 200-i};
+    vector<float> cart_cords = {(j-250)/50, (250-i)/50};
     return cart_cords;
 }
 
@@ -69,41 +71,15 @@ vector<float> cart_to_img(float x, float y)
     j: column of image
     */
 
-	vector<float> img_cords = {200-y, x};
+	vector<float> img_cords = {250-50*y, 50*x+250};
     return img_cords;
 } 
 
-vector<float> get_straight(float x1,float y1,float x2, float y2, float r,float c,bool side=false,bool verbose=false)
-{
-	/*
-    Creates a straight line using two points in the cartesian system
-    input:
-    x1: x-coordinate of point 1 in cartesian system
-    y1: y-coordinate of point 1 in cartesian system
-    x2: x-coordinate of point 2 in cartesian system
-    y2: y-coordinate of point 2 in cartesian system
-    r: radius of the robot
-    c: clearance of the robot
-    returns:
-    m: slope of the  of the straight line
-    c1: y intercept of the straight line
-    */
-    float m = (y2-y1)/(x2-x1);
-    float c_ = y1 - x1*(y2-y1)/(x2-x1);
-    float c1;
-    if(side) c1 = pow((r+c)*(1+m*m),0.5)+c_;
-    else c1 = -pow((r+c)*(1+m*m),0.5)+c_;
-    if(verbose) cout<<m<<" "<<c_<<" "<<c1<<endl;
-    vector<float> params = {m,c1};
-    return params;
-}
-
-// bool insquare1,2,3, inobstacle
 bool in_square1(vector<float> state,float r=0,float c=0)
 {
     //0.25, 1.75->x, 4.25,5.75-> y
     float x = state[0], y = state[1];
-    return  x>=-5.75-r-c && x<=-4.25+r+c && y>= -0.75-r-c && y<= 0.75+r+c;
+    return  x>=-4.75-r-c && x<=-3.25+r+c && y>= -0.75-r-c && y<= 0.75+r+c;
 }
 
 bool in_square2(vector<float> state,float r=0,float c=0)
@@ -117,7 +93,7 @@ bool in_square3(vector<float> state,float r=0,float c=0)
 {
     //0.25, 1.75->x, 4.25,5.75-> y
     float x = state[0], y = state[1];
-    return x>=4.25-r-c && x<=5.75+r+c && y>= -0.75-r-c && y<= 0.75+r+c;
+    return x>=3.25-r-c && x<=4.75+r+c && y>= -0.75-r-c && y<= 0.75+r+c;
 }
 
 bool in_obstacle(vector<float> state, float r=0, float c=0)
@@ -133,17 +109,17 @@ bool in_obstacle(vector<float> state, float r=0, float c=0)
     float x =state[0], y=state[1];  
 
     return 
-    (x)*(x) + (y)*(y) <= (2+r+c)*(2+r+c) || 
-    (x-2)*(x-2) + (y-3)*(y-3) <= (2+r+c)*(2+r+c) ||
-    (x-2)*(x-2) + (y+3)*(y+3) <= (2+r+c)*(2+r+c) ||
-    (x+2)*(x+2) + (y+3)*(y+3) <= (2+r+c)*(2+r+c) ||
+    (x)*(x) + (y)*(y) <= (1+r+c)*(1+r+c) || 
+    (x-2)*(x-2) + (y-3)*(y-3) <= (1+r+c)*(1+r+c) ||
+    (x-2)*(x-2) + (y+3)*(y+3) <= (1+r+c)*(1+r+c) ||
+    (x+2)*(x+2) + (y+3)*(y+3) <= (1+r+c)*(1+r+c) ||
     in_square1(state,r,c)||in_square2(state,r,c)||in_square3(state,r,c)||
     x<-5-r-c || x>5+r+c||y<-5-r-c||y>5+r+c;
 }
 
 
 
-vector<float> bin(vector<float> state, float scale1 = 0.5, float scale2= 8/PI)
+vector<float> bin(vector<float> state, float scale1 = 0.05, float scale2= 8/PI)
 {
     /*
     computes the bin a state belongs to in the configuration space
@@ -162,8 +138,8 @@ vector<float> bin(vector<float> state, float scale1 = 0.5, float scale2= 8/PI)
 }
 
  
-vector<vector<float>> get_children(vector<float> state, float rpm1, float rpm2, float r , float L, float c=0, 
-    float dt = 1)
+vector<vector<float>> get_children(vector<float> state, float rpm1, float rpm2,const float &r,const float &c ,const float &L
+,const float &wr, float dt = 1)
 {
     /*
     Explores the child nodes
@@ -182,28 +158,47 @@ vector<vector<float>> get_children(vector<float> state, float rpm1, float rpm2, 
     rpm1 = rpm1*(PI/30); // changed to radian per sec
     rpm2 = rpm2*(PI/30);  // changed to radian per sec
 	
-    vector <vector<float>> velocity[] = {{0,rpm1},{rpm1,0},{rpm1,rpm1},{0,rpm2},{rpm2,0},{rpm2,rpm2},{rpm1,rpm2},{rpm2,rpm1}}; // 8 action spaces
+    float velocity[8][2] = {{0,rpm1},{rpm1,0},{rpm1,rpm1},{0,rpm2},{rpm2,0},{rpm2,rpm2},{rpm1,rpm2},{rpm2,rpm1}}; // 8 action spaces
     vector<vector<float>> children;
-	
+	float ul, ur,omega, i_radius, iccx, iccy;
+    std::vector<float> new_state(3);
 	
     for(int i=0; i< 8;++i)
     {
-    	ul = velocity[i][0];
-    	ur = velocity[i][1];
-        std::vector<float> new_state(3);
-        new_state[0] = state[0]+(0.5*r)*(ul+ur)*cos(state[2])*dt;                                
-        new_state[1] = state[1]+(0.5*r)*(ul+ur)*cos(state[2])*dt;                                
-        new_state[2] = state[2]+(r/L)*(ur-ul)*dt;                                               
-        if(new_state[2]<-PI) new_state[2] += 2*PI;
-        else if(new_state[2]>PI) new_state[2] -=2*PI; 
+    	ul = velocity[i][0]*wr;
+    	ur = velocity[i][1]*wr;
+        // printf("%f %f\n",ul,ur);    
+       
+        if(ul==ur)
+        {
+            new_state[0] = state[0]+ ul*dt*cos(state[0]);
+            new_state[1] = state[1]+ ul*dt*sin(state[0]);
+            new_state[2] = state[2];
+        }
+        else
+        {
+            omega = (ur-ul)/L ;
+        i_radius = (ur+ul)/(2*omega);
 
-        if(!in_obstacle(new_state,rpm,c))
+        iccx = state[0]- i_radius*sin(state[2]);
+        iccy = state[1]+ i_radius*cos(state[2]);
+
+        new_state[0] = (state[0]-iccx)*cos(omega*dt)-(state[1]-iccy)*sin(omega*dt)+iccx;//state[0]+(0.5*wr)*(ul+ur)*cos(state[2])*dt;                                
+        new_state[1] = (state[0]-iccx)*sin(omega*dt)+(state[1]-iccy)*cos(omega*dt)+iccy;//state[1]+(0.5*wr)*(ul+ur)*sin(state[2])*dt;                                
+        new_state[2] = omega*dt+state[2];//state[2]+(wr/L)*(ur-ul)*dt;   
+        }
+
+                                                    
+        while(new_state[2]<-PI) new_state[2] += 2*PI;
+        while(new_state[2]>PI) new_state[2] -=2*PI; 
+        // printf("angle:%f\n", new_state[2]);
+        if(!in_obstacle(new_state,r,c))
         {
             children.push_back(new_state);
         }
     }
     return children;
-
+}
 
 float euclidean_dist(vector<float> pos, vector<float> goal)
 {
@@ -221,7 +216,7 @@ float euclidean_dist(vector<float> pos, vector<float> goal)
 
 
 tuple<vector_map,  vector3d, vector<float> > a_star(vector<float> start, vector<float> goal,
- float r=0, float c=0, float dist = 1,  float theta = PI/6, float thresh =1.5)
+const float &r,const float &c, const float &wr, const float &l, float rpm_1,  float rpm_2, const float &thresh)
 {   
    /*
    Explores the child nodes
@@ -242,7 +237,7 @@ tuple<vector_map,  vector3d, vector<float> > a_star(vector<float> start, vector<
     priority_q q;
     float cost;
     vector<float> cur_state;
-    tuple begin(0,start);
+    tple begin(0,start);
     q.push(begin);
 
     if(in_obstacle(goal) || in_obstacle(start))
@@ -255,9 +250,11 @@ tuple<vector_map,  vector3d, vector<float> > a_star(vector<float> start, vector<
     unsigned int count =0 ;
     while(!q.empty())
     {
+
         tie (cost, cur_state) = q.top();
         q.pop();
         
+
         if(euclidean_dist(cur_state,goal)<=thresh) 
         {
             cout<<"Goal Reached!!!"<<endl;\
@@ -266,15 +263,18 @@ tuple<vector_map,  vector3d, vector<float> > a_star(vector<float> start, vector<
         }
         else if(visited.find(bin(cur_state))!=visited.end()) continue;
         visited.insert(bin(cur_state));
-        children = get_children(cur_state,r,c, dist, theta);
+        //(vector<float> state, float rpm1, float rpm2, float r, float c , float L, float dt = 1)
+        children = get_children(cur_state,rpm_1, rpm_2,r,c,wr,l);
         
         for(auto child: children)
         {
             float child_cost = cost+1+euclidean_dist(child,goal);
-            tuple node(child_cost, child);
+            tple node(child_cost, child);
             q.push(node);
             backtrack.insert(pair<vector<float>,vector<float>>(child,cur_state));
+            // printf("child: %f\t%f\t%f\n",child[0],child[1],child[2]);
         }
+
         children.push_back(cur_state);
         memory.push_back(children);
         ++count;
@@ -289,18 +289,21 @@ tuple<vector_map,  vector3d, vector<float> > a_star(vector<float> start, vector<
 int main()
 {
 //////////////////////////INITIALIZATION&INPUTS///////////////////////////////////////////////////////////////////////////
-    float r,c, thresh,dist,ang;
-    int scale=4;// For resizing
+    float wr,l,r,c, thresh,rpm_1, rpm_2;
+    int scale=1;
     float x1,x2,y1,y2;
     vector<float> parent_img,parent_cart,child_img, child_cart;
     Point_<float> parent,child;
-    int speed = 200;
+    int speed;
     vector<float> start(3), goal(3), last_node(3);
     vector_map backtrack;
     vector3d memory;
 
-    cout<<"Please input radius and clearance as \"r c\" (without the quotes)\n";
-    cin>>r>>c;
+    r = 0.1; c = 0.1; wr = 0.5; l = 0.1;
+    // cout<<"Please input radius and clearance as \"r c\" (without the quotes)\n";
+    // cin>>r>>c;
+    // cout<<"Please input the wheel radius and distance between wheels (L)"
+    // cin>>wr>>l;
     cout<<
     "Please input starting configuration as \"x y theta\" (without the quotes) where theta is in degrees\n";
     cin>>start[0]>>start[1]>>start[2];
@@ -309,17 +312,22 @@ int main()
     cin>>goal[0]>>goal[1]>>goal[2];
     cout<<"Please input the threshold for reaching near the goal\n";
     cin>>thresh;
-    cout<<"Please input the step size and angle of turn in degrees for reaching near the goal\n";
-    cin>>dist>>ang;
+    cout<<"Please input the rpm1 and rpm2\n";
+    cin>>rpm_1>>rpm_2;
+    // cout<<"Please input simulation time step";
+    // cin>>dt;
     
-    ang = ang*PI/180;
+    // start = {-4,-4,0}; goal = {0,-2,0};
+    // thresh = 0.5;
+    // rpm_1 = 10; rpm_2 = 20;
+    // ang = ang*PI/    180;
     start[2] = start[2]*PI/180;
 
 
-//////////////////A* ALGORITHM////////////////////////////////////////////////////////////////////////////////////////////////
+// //////////////////A* ALGORITHM////////////////////////////////////////////////////////////////////////////////////////////////
     
     auto start_time = chrono::high_resolution_clock::now();
-    tie(backtrack, memory, last_node) = a_star(start, goal,r,c,dist,ang,thresh);
+    tie(backtrack, memory, last_node) = a_star(start, goal,r,c,wr,l,rpm_1,rpm_2,thresh);
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::seconds>(stop - start_time); 
 
@@ -327,8 +335,8 @@ int main()
     cout << "Time taken by function: "
          << duration.count() << " seconds" << endl;
 
-///////////////////VISUALISATION/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    Mat resized, img(200, 300, CV_8UC3, Scalar(200,200, 200));
+// ///////////////////VISUALISATION/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    Mat resized, img(500, 500, CV_8UC3, Scalar(200,200, 200));
     namedWindow("A* in Action", WINDOW_AUTOSIZE);
 
     for(int i = 0; i < img.rows; i++)
@@ -345,10 +353,13 @@ int main()
             }
         }
     }
+    // imshow("A* in Action", img);
+    // waitKey(0);
+    speed = memory.size()/100;
 
     
     resize(img, resized,Size(), scale,scale);
-    // VideoWriter video("output.avi",VideoWriter::fourcc('M','J','P','G'),120, Size(300*scale, 200*scale));
+//     // VideoWriter video("output.avi",VideoWriter::fourcc('M','J','P','G'),120, Size(300*scale, 200*scale));
 
     
     for(auto node = 0; node< memory.size(); ++node)
@@ -373,7 +384,7 @@ int main()
             {
                 // video.write(resized);
                 imshow("A* in Action", resized);
-                waitKey(1);
+                waitKey(50);
             }
         }
     }
@@ -389,7 +400,7 @@ int main()
         parent.y = parent_img[0]*scale;
         child.x = child_img[1]*scale;
         child.y = child_img[0]*scale;
-        line(resized, parent, child,Scalar(255,255, 255),2);
+        line(resized, parent, child,Scalar(0,0,0),2);
         // video.write(resized);
         imshow("A* in Action", resized);
         waitKey(1);
