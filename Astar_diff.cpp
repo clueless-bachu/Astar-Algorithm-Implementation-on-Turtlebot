@@ -161,35 +161,39 @@ vector<float> bin(vector<float> state, float scale1 = 0.5, float scale2= 8/PI)
     return state;
 }
 
-  std::vector<std::vector<float>> get_children(std::vector<float> state, std::vector<float> rpm, float r , float L, float c=0, 
-    float dist = 1,float theta = PI/8)
+ 
+vector<vector<float>> get_children(vector<float> state, float rpm1, float rpm2, float r , float L, float c=0, 
+    float dt = 1)
 {
     /*
     Explores the child nodes
     input:
     state: current coordinates (x,y,theta)
-    rpm: speed of left and right wheels
+    rpm1: first input rpm from user
+    rpm2: second input rpm from user
     r: wheel radius of the robot
     L: distance between 2 wheels
     c: clearance of the robot
-    dist: stepsize  
-    theta: angle between action set at each node
+    dt: differential stepsize  
     returns:
     children: 2D vector of floats
     */
     
-    float angles[] = {0, theta, 2*theta, 3*theta, 4*theta, -theta, -2*theta, -3*theta}; // 8 action spaces
-    std::vector<std::vector<float>> children;
-	dt = dist;
-	ul = rpm[0];
-	ur = rpm[1];
-		
+    rpm1 = rpm1*(PI/30); // changed to radian per sec
+    rpm2 = rpm2*(PI/30);  // changed to radian per sec
+	
+    vector <vector<float>> velocity[] = {{0,rpm1},{rpm1,0},{rpm1,rpm1},{0,rpm2},{rpm2,0},{rpm2,rpm2},{rpm1,rpm2},{rpm2,rpm1}}; // 8 action spaces
+    vector<vector<float>> children;
+	
+	
     for(int i=0; i< 8;++i)
     {
+    	ul = velocity[i][0];
+    	ur = velocity[i][1];
         std::vector<float> new_state(3);
-        new_state[0] = (0.5*r)*(ul+ur)*cos(state[2])*dt;                                
-        new_state[1] = (0.5*r)*(ul+ur)*cos(state[2])*dt;                                
-        new_state[2] = (r/L)*(ur-ul)*dt;                                                
+        new_state[0] = state[0]+(0.5*r)*(ul+ur)*cos(state[2])*dt;                                
+        new_state[1] = state[1]+(0.5*r)*(ul+ur)*cos(state[2])*dt;                                
+        new_state[2] = state[2]+(r/L)*(ur-ul)*dt;                                               
         if(new_state[2]<-PI) new_state[2] += 2*PI;
         else if(new_state[2]>PI) new_state[2] -=2*PI; 
 
