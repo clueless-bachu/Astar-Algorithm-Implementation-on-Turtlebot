@@ -143,7 +143,7 @@ bool in_obstacle(vector<float> state, float r=0, float c=0)
 
 
 
-vector<float> bin(vector<float> state, float scale1 = 0.5, float scale2= 6/PI)
+vector<float> bin(vector<float> state, float scale1 = 0.5, float scale2= 8/PI)
 {
     /*
     computes the bin a state belongs to in the configuration space
