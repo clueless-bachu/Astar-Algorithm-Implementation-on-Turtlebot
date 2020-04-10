@@ -44,7 +44,7 @@ A video of the output can be seen at https://youtu.be/wbpHSscLVFs.
 ### PHASE 3
 
 In this phase, we changed the rigid robot to Turtle bot and had to implement A* algorithm for non holonomic constraints. The code takes the start coordinate (x_s, y_s, theta_s), the goal coordinate (x_g, y_g) and two values of "RPM" for the wheel velocities as input from the user and creates an optimal path for the robot to reach the goal.
-The code is written in C++ in Astar_diff.cpp.
+The code is written in C++ in Astar_diff_phase3.cpp.
 
 ##### Compiling
 
