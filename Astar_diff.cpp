@@ -1,14 +1,14 @@
 #include<bits/stdc++.h>
-//#include "opencv2/opencv.hpp"
+// #include "opencv2/opencv.hpp"
 #include<cmath>
 #include <tf/transform_broadcaster.h>
 #define PI 3.14159265
 #include "ros/ros.h"
-#include <nav_msgs/Odometry.h>
+// #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Twist.h>
 
 using namespace std;
-//using namespace cv;
+// using namespace cv;
 
 
 
@@ -100,7 +100,7 @@ bool in_square3(vector<float> state,float r=0,float c=0)
     return x>=3.25-r-c && x<=4.75+r+c && y>= -0.75-r-c && y<= 0.75+r+c;
 }
 
-bool in_obstacle(vector<float> state, float r=0, float c=0)
+bool in_obstacle(const vector<float>& state, float r=0, float c=0)
 {
     /*
     Checks whether the state is inside the obstacle space
@@ -123,7 +123,7 @@ bool in_obstacle(vector<float> state, float r=0, float c=0)
 
 
 
-vector<float> bin(vector<float> state, float scale1 = 0.05, float scale2= 8/PI)
+vector<float> bin(vector<float> state, float scale1 = 0.1, float scale2= 8/PI)
 {
     /*
     computes the bin a state belongs to in the configuration space
@@ -165,7 +165,7 @@ vector<vector<float>> get_children(vector<float> state, float rpm1, float rpm2,c
     float velocity[8][2] = {{0,rpm1},{rpm1,0},{rpm1,rpm1},{0,rpm2},{rpm2,0},{rpm2,rpm2},{rpm1,rpm2},{rpm2,rpm1}}; // 8 action spaces
     vector<vector<float>> children;
 	float ul, ur,omega, i_radius, iccx, iccy;
-    std::vector<float> new_state(3);
+    std::vector<float> new_state(5);
 	
     for(int i=0; i< 8;++i)
     {
@@ -196,6 +196,9 @@ vector<vector<float>> get_children(vector<float> state, float rpm1, float rpm2,c
         while(new_state[2]<-PI) new_state[2] += 2*PI;
         while(new_state[2]>PI) new_state[2] -=2*PI; 
         // printf("angle:%f\n", new_state[2]);
+        new_state[3] = ul;
+        new_state[4] = ur;
+        
         if(!in_obstacle(new_state,r,c))
         {
             children.push_back(new_state);
@@ -309,7 +312,7 @@ public:
 		// sub = n.subscribe("/gps", 1, &actuator::callback,this);
 	}
 
-	void actuatorcb(void)
+	void actuatorcb(float rpml,float rpmr)
 	{
 		//pub.publish();
 		// ros::spinOnce();
@@ -337,22 +340,22 @@ int main(int argc,char **argv)
     int scale=1;
     float x1,x2,y1,y2;
     vector<float> parent_img,parent_cart,child_img, child_cart;
-    //Point_<float> parent,child;
+    // Point_<float> parent,child;
     int speed;
-    vector<float> start(3), goal(3), last_node(3);
+    vector<float> start(5), goal(5), last_node(5);
     vector_map backtrack;
     vector3d memory;
 
     r = 0.22; c = 0.2; wr = 0.066; l = 0.287;
-     while (ros::ok())
-     {
-     	bot.actuatorcb();
-     	ros::spinOnce();
-     }
-    // // cout<<"Please input radius and clearance as \"r c\" (without the quotes)\n";
-    // // cin>>r>>c;
-    // // cout<<"Please input the wheel radius and distance between wheels (L)"
-    // // cin>>wr>>l;
+     // while (ros::ok())
+     // {
+     // 	bot.actuatorcb();
+     // 	ros::spinOnce();
+     // }
+    // cout<<"Please input radius and clearance as \"r c\" (without the quotes)\n";
+    // cin>>r>>c;
+    // cout<<"Please input the wheel radius and distance between wheels (L)"
+    // cin>>wr>>l;
     // cout<<
     // "Please input starting configuration as \"x y theta\" (without the quotes) where theta is in degrees\n";
     // cin>>start[0]>>start[1]>>start[2];
@@ -363,26 +366,26 @@ int main(int argc,char **argv)
     // cin>>thresh;
     // cout<<"Please input the rpm1 and rpm2\n";
     // cin>>rpm_1>>rpm_2;
-    // // cout<<"Please input simulation time step";
+    // cout<<"Please input simulation time step";
     // // cin>>dt;
     
-    // // start = {-4,-4,0}; goal = {0,-2,0};
-    // // thresh = 0.5;
-    // // rpm_1 = 10; rpm_2 = 20;
-    // // ang = ang*PI/    180;
-    // start[2] = start[2]*PI/180;
+    start = {-4,-4,0,0,0}; goal = {4,4,0,0,0};
+    thresh = 0.5;
+    rpm_1 = 10; rpm_2 = 20;
+    // ang = ang*PI/    180;
+    start[2] = start[2]*PI/180;
 
 
 // //////////////////A* ALGORITHM////////////////////////////////////////////////////////////////////////////////////////////////
     
-    // auto start_time = chrono::high_resolution_clock::now();
-    // tie(backtrack, memory, last_node) = a_star(start, goal,r,c,wr,l,rpm_1,rpm_2,thresh);
-    // auto stop = chrono::high_resolution_clock::now();
-    // auto duration = chrono::duration_cast<chrono::seconds>(stop - start_time); 
+    auto start_time = chrono::high_resolution_clock::now();
+    tie(backtrack, memory, last_node) = a_star(start, goal,r,c,wr,l,rpm_1,rpm_2,thresh);
+    auto stop = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::seconds>(stop - start_time); 
 
 
-    // cout << "Time taken by function: "
-    //      << duration.count() << " seconds" << endl;
+    cout << "Time taken by function: "
+         << duration.count() << " seconds" << endl;
 
 // ///////////////////VISUALISATION/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -440,26 +443,36 @@ int main(int argc,char **argv)
 //         }
 //     }
 
-//     goal = last_node;
-//     while(goal!= start)
-//     {
-//         child_cart = backtrack[goal];
-//         parent_cart = goal;
-//         parent_img  = cart_to_img(parent_cart[0],parent_cart[1]);
-//         child_img  = cart_to_img(child_cart[0],child_cart[1]);
-//         parent.x = parent_img[1]*scale;
-//         parent.y = parent_img[0]*scale;
-//         child.x = child_img[1]*scale;
-//         child.y = child_img[0]*scale;
-//         line(resized, parent, child,Scalar(0,0,0),2);
-//         // video.write(resized);
-//         imshow("A* in Action", resized);
-//         waitKey(1);
-//         goal = child_cart;
-//     }
-//     // video.release();
-//     imshow("A* in Action", resized);
-//     waitKey(0);     
+    goal = last_node;
+    vector<vector<float>> actions;
+    actions.reserve(backtrack.size());
+
+    while(goal!= start)
+    {
+        child_cart = backtrack[goal];
+        // parent_cart = goal;
+        // parent_img  = cart_to_img(parent_cart[0],parent_cart[1]);
+        // child_img  = cart_to_img(child_cart[0],child_cart[1]);
+        // parent.x = parent_img[1]*scale;
+        // parent.y = parent_img[0]*scale;
+        // child.x = child_img[1]*scale;
+        // child.y = child_img[0]*scale;
+        // line(resized, parent, child,Scalar(0,0,0),2);
+        // // video.write(resized);
+        // imshow("A* in Action", resized);
+        // waitKey(1);
+        actions.emplace_back(child_cart);
+        goal = child_cart;
+    }
+
+    for(int i=actions.size(); i>=0; --i)
+    {
+        bot.actuatorcb(actions[i][3],actions[i][4]);
+    }
+
+    // // video.release();
+    // imshow("A* in Action", resized);
+    // waitKey(0);     
     
     return 0;
 }
