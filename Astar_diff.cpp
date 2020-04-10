@@ -1,10 +1,14 @@
 #include<bits/stdc++.h>
-#include "opencv2/opencv.hpp"
+// #include "opencv2/opencv.hpp"
 #include<cmath>
+#include <tf/transform_broadcaster.h>
 #define PI 3.14159265
+#include "ros/ros.h"
+// #include <nav_msgs/Odometry.h>
+#include <geometry_msgs/Twist.h>
 
 using namespace std;
-using namespace cv;
+// using namespace cv;
 
 
 
@@ -35,14 +39,14 @@ using priority_q = priority_queue<tuple<float, vector<float>>,
  vector<tuple<float, vector<float>>>, greater<tuple<float, vector<float>>>>;
 using tple = tuple<float, vector<float>>;
 
-
-Scalar ScalarHSV2BGR(uchar H, uchar S, uchar V)
-{
-    Mat rgb;
-    Mat hsv(1,1, CV_8UC3, Scalar(H,S,V));
-    cvtColor(hsv, rgb, COLOR_HSV2BGR);
-    return Scalar(rgb.data[0], rgb.data[1], rgb.data[2]);
-}
+	
+// Scalar ScalarHSV2BGR(uchar H, uchar S, uchar V)
+// {
+//     Mat rgb;
+//     Mat hsv(1,1, CV_8UC3, Scalar(H,S,V));
+//     cvtColor(hsv, rgb, COLOR_HSV2BGR);
+//     return Scalar(rgb.data[0], rgb.data[1], rgb.data[2]);
+// }
 
 vector<float> img_to_cart(float i, float j)
 {
@@ -96,7 +100,7 @@ bool in_square3(vector<float> state,float r=0,float c=0)
     return x>=3.25-r-c && x<=4.75+r+c && y>= -0.75-r-c && y<= 0.75+r+c;
 }
 
-bool in_obstacle(vector<float> state, float r=0, float c=0)
+bool in_obstacle(const vector<float>& state, float r=0, float c=0)
 {
     /*
     Checks whether the state is inside the obstacle space
@@ -119,7 +123,7 @@ bool in_obstacle(vector<float> state, float r=0, float c=0)
 
 
 
-vector<float> bin(vector<float> state, float scale1 = 0.05, float scale2= 8/PI)
+vector<float> bin(vector<float> state, float scale1 = 0.1, float scale2= 8/PI)
 {
     /*
     computes the bin a state belongs to in the configuration space
@@ -161,7 +165,7 @@ vector<vector<float>> get_children(vector<float> state, float rpm1, float rpm2,c
     float velocity[8][2] = {{0,rpm1},{rpm1,0},{rpm1,rpm1},{0,rpm2},{rpm2,0},{rpm2,rpm2},{rpm1,rpm2},{rpm2,rpm1}}; // 8 action spaces
     vector<vector<float>> children;
 	float ul, ur,omega, i_radius, iccx, iccy;
-    std::vector<float> new_state(3);
+    std::vector<float> new_state(5);
 	
     for(int i=0; i< 8;++i)
     {
@@ -192,6 +196,9 @@ vector<vector<float>> get_children(vector<float> state, float rpm1, float rpm2,c
         while(new_state[2]<-PI) new_state[2] += 2*PI;
         while(new_state[2]>PI) new_state[2] -=2*PI; 
         // printf("angle:%f\n", new_state[2]);
+        new_state[3] = ul;
+        new_state[4] = ur;
+        
         if(!in_obstacle(new_state,r,c))
         {
             children.push_back(new_state);
@@ -286,40 +293,85 @@ const float &r,const float &c, const float &wr, const float &l, float rpm_1,  fl
     return path;
 }
 
-int main()
+
+class actuator
+{ 
+private:
+	ros::Publisher pub;
+	// ros::Subscriber sub;
+	ros::NodeHandle n;
+	// control::Actuator angles;
+	// bool flag;
+	// float par, gait[12];
+	// std::queue<Eigen::Vector3f> pos;
+
+public:
+	actuator(void)
+	{
+		pub = n.advertise<geometry_msgs::Twist>("/cmd_vel",1);
+		// sub = n.subscribe("/gps", 1, &actuator::callback,this);
+	}
+
+	void actuatorcb(float rpml,float rpmr)
+	{
+		//pub.publish();
+		// ros::spinOnce();
+		geometry_msgs::Twist msg;
+		msg.linear.x = -0.1;
+		// msg.linear.y = -0.1;
+
+		msg.angular.z = 1;
+
+	    //publish the message
+	    pub.publish(msg);
+
+
+	}
+
+};
+
+int main(int argc,char **argv)
 {
+
+	ros::init(argc,argv,"actuator");
+	actuator bot;
 //////////////////////////INITIALIZATION&INPUTS///////////////////////////////////////////////////////////////////////////
     float wr,l,r,c, thresh,rpm_1, rpm_2;
     int scale=1;
     float x1,x2,y1,y2;
     vector<float> parent_img,parent_cart,child_img, child_cart;
-    Point_<float> parent,child;
+    // Point_<float> parent,child;
     int speed;
-    vector<float> start(3), goal(3), last_node(3);
+    vector<float> start(5), goal(5), last_node(5);
     vector_map backtrack;
     vector3d memory;
 
-    r = 0.1; c = 0.1; wr = 0.5; l = 0.1;
+    r = 0.22; c = 0.2; wr = 0.066; l = 0.287;
+     // while (ros::ok())
+     // {
+     // 	bot.actuatorcb();
+     // 	ros::spinOnce();
+     // }
     // cout<<"Please input radius and clearance as \"r c\" (without the quotes)\n";
     // cin>>r>>c;
     // cout<<"Please input the wheel radius and distance between wheels (L)"
     // cin>>wr>>l;
-    cout<<
-    "Please input starting configuration as \"x y theta\" (without the quotes) where theta is in degrees\n";
-    cin>>start[0]>>start[1]>>start[2];
-    cout<<
-    "Please input goal configuration as \"x y theta\" (without the quotes) where theta is in degrees\n";
-    cin>>goal[0]>>goal[1]>>goal[2];
-    cout<<"Please input the threshold for reaching near the goal\n";
-    cin>>thresh;
-    cout<<"Please input the rpm1 and rpm2\n";
-    cin>>rpm_1>>rpm_2;
+    // cout<<
+    // "Please input starting configuration as \"x y theta\" (without the quotes) where theta is in degrees\n";
+    // cin>>start[0]>>start[1]>>start[2];
+    // cout<<
+    // "Please input goal configuration as \"x y theta\" (without the quotes) where theta is in degrees\n";
+    // cin>>goal[0]>>goal[1]>>goal[2];
+    // cout<<"Please input the threshold for reaching near the goal\n";
+    // cin>>thresh;
+    // cout<<"Please input the rpm1 and rpm2\n";
+    // cin>>rpm_1>>rpm_2;
     // cout<<"Please input simulation time step";
-    // cin>>dt;
+    // // cin>>dt;
     
-    // start = {-4,-4,0}; goal = {0,-2,0};
-    // thresh = 0.5;
-    // rpm_1 = 10; rpm_2 = 20;
+    start = {-4,-4,0,0,0}; goal = {4,4,0,0,0};
+    thresh = 0.5;
+    rpm_1 = 10; rpm_2 = 20;
     // ang = ang*PI/    180;
     start[2] = start[2]*PI/180;
 
@@ -336,79 +388,91 @@ int main()
          << duration.count() << " seconds" << endl;
 
 // ///////////////////VISUALISATION/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    Mat resized, img(500, 500, CV_8UC3, Scalar(200,200, 200));
-    namedWindow("A* in Action", WINDOW_AUTOSIZE);
 
-    for(int i = 0; i < img.rows; i++)
-    {
-        for(int j = 0; j < img.cols; j++)
-        {
-            vector<float> cords = img_to_cart(i,j);
-            vector<float> state = {cords[0],cords[1],0};
 
-            if(in_obstacle(state,r,c))
-            {
-                 Vec3b pixel = {0,0,0};
-                 img.at<Vec3b>(i, j)= pixel;
-            }
-        }
-    }
-    // imshow("A* in Action", img);
-    // waitKey(0);
-    speed = memory.size()/100;
+//     Mat resized, img(500, 500, CV_8UC3, Scalar(200,200, 200));
+//     namedWindow("A* in Action", WINDOW_AUTOSIZE);
 
-    
-    resize(img, resized,Size(), scale,scale);
-//     // VideoWriter video("output.avi",VideoWriter::fourcc('M','J','P','G'),120, Size(300*scale, 200*scale));
+//     for(int i = 0; i < img.rows; i++)
+//     {
+//         for(int j = 0; j < img.cols; j++)
+//         {
+//             vector<float> cords = img_to_cart(i,j);
+//             vector<float> state = {cords[0],cords[1],0};
+
+//             if(in_obstacle(state,r,c))
+//             {
+//                  Vec3b pixel = {0,0,0};
+//                  img.at<Vec3b>(i, j)= pixel;
+//             }
+//         }
+//     }
+//     // imshow("A* in Action", img);
+//     // waitKey(0);
+//     speed = memory.size()/100;
 
     
-    for(auto node = 0; node< memory.size(); ++node)
-    {
-        x1 =  memory[node][memory[node].size()-1][0];
-        y1 =  memory[node][memory[node].size()-1][1];
-        // parent_cart = {x1,y1};
-        parent_img  = cart_to_img(x1,y1);
-        parent.x = parent_img[1]*scale;
-        parent.y = parent_img[0]*scale; 
+//     resize(img, resized,Size(), scale,scale);
+// //     // VideoWriter video("output.avi",VideoWriter::fourcc('M','J','P','G'),120, Size(300*scale, 200*scale));
 
-        for(int i=0;i< memory[node].size()-1;++i)
-        {
-            x2 =  memory[node][i][0];
-            y2 =  memory[node][i][1];
-            child_cart = {x1,y1};
-            child_img  = cart_to_img(x2,y2);
-            child.x = child_img[1]*scale;
-            child.y = child_img[0]*scale;
-            line(resized, parent, child,ScalarHSV2BGR((node/speed)%255,255, 255),1);
-            if(!(node%speed))
-            {
-                // video.write(resized);
-                imshow("A* in Action", resized);
-                waitKey(50);
-            }
-        }
-    }
+    
+//     for(auto node = 0; node< memory.size(); ++node)
+//     {
+//         x1 =  memory[node][memory[node].size()-1][0];
+//         y1 =  memory[node][memory[node].size()-1][1];
+//         // parent_cart = {x1,y1};
+//         parent_img  = cart_to_img(x1,y1);
+//         parent.x = parent_img[1]*scale;
+//         parent.y = parent_img[0]*scale; 
+
+//         for(int i=0;i< memory[node].size()-1;++i)
+//         {
+//             x2 =  memory[node][i][0];
+//             y2 =  memory[node][i][1];
+//             child_cart = {x1,y1};
+//             child_img  = cart_to_img(x2,y2);
+//             child.x = child_img[1]*scale;
+//             child.y = child_img[0]*scale;
+//             line(resized, parent, child,ScalarHSV2BGR((node/speed)%255,255, 255),1);
+//             if(!(node%speed))
+//             {
+//                 // video.write(resized);
+//                 imshow("A* in Action", resized);
+//                 waitKey(50);
+//             }
+//         }
+//     }
 
     goal = last_node;
+    vector<vector<float>> actions;
+    actions.reserve(backtrack.size());
+
     while(goal!= start)
     {
         child_cart = backtrack[goal];
-        parent_cart = goal;
-        parent_img  = cart_to_img(parent_cart[0],parent_cart[1]);
-        child_img  = cart_to_img(child_cart[0],child_cart[1]);
-        parent.x = parent_img[1]*scale;
-        parent.y = parent_img[0]*scale;
-        child.x = child_img[1]*scale;
-        child.y = child_img[0]*scale;
-        line(resized, parent, child,Scalar(0,0,0),2);
-        // video.write(resized);
-        imshow("A* in Action", resized);
-        waitKey(1);
+        // parent_cart = goal;
+        // parent_img  = cart_to_img(parent_cart[0],parent_cart[1]);
+        // child_img  = cart_to_img(child_cart[0],child_cart[1]);
+        // parent.x = parent_img[1]*scale;
+        // parent.y = parent_img[0]*scale;
+        // child.x = child_img[1]*scale;
+        // child.y = child_img[0]*scale;
+        // line(resized, parent, child,Scalar(0,0,0),2);
+        // // video.write(resized);
+        // imshow("A* in Action", resized);
+        // waitKey(1);
+        actions.emplace_back(child_cart);
         goal = child_cart;
     }
-    // video.release();
-    imshow("A* in Action", resized);
-    waitKey(0);     
+
+    for(int i=actions.size(); i>=0; --i)
+    {
+        bot.actuatorcb(actions[i][3],actions[i][4]);
+    }
+
+    // // video.release();
+    // imshow("A* in Action", resized);
+    // waitKey(0);     
     
     return 0;
 }
