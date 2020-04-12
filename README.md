@@ -101,7 +101,7 @@ To build, run the following commands :
 .....
 Run on terminal: 
 ```
-cd <catkin workspace>
+cd <ROS workspace>
 catkin_make
 ```
 This will create an executable named ```astar```.
@@ -119,7 +119,7 @@ roslaunch turtlebot3_gazebo turtlebot3_map_p4.launch
 
 Run the following commands on another terminal: 
 ```
-cd <catkin workspace>
+cd <ROS workspace>
 source devel/setup.bash
 rosrun astar astar
 ```
