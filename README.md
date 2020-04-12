@@ -114,7 +114,7 @@ Run the following commands on the terminal:
 cd <ROS workspace>
 source devel/setup.bash
 export TURTLEBOT3_MODEL=burger
-roslaunch turtlebot3_gazebo turtlebot3_map_p4.launch
+roslaunch astar turtlebot3_map_p4.launch
 ```
 
 Run the following commands on another terminal: 
