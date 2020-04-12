@@ -26,7 +26,7 @@ Note:
 - Go to the location of this directory.
 - Run the following commands on terminal:  
 ```
-cd Implementation-of-Astar-algorithm
+cd Implementation-of-Astar-algorithm/astar_simulation
 cmake ./
 make
 ```
