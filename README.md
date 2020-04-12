@@ -67,12 +67,26 @@ To run the program run ```./astar``` in the command line.
 
 
 ### PHASE 4
-In this phase, the Turtlebot3 is simulated in Gazebo.
+In this phase, Turtlebot3 is simulated in Gazebo.
 
 ##### Dependencies
+- Ubuntu 16.04
+- ROS Kinetic
+- Gazebo
+- Turtlebot3 Packages
 
+##### Install Dependencies
+- This project was developed using ROS Kinetic.
+-	It is highly recommended that ROS Kinetic is properly installed on your system before the use of this project.
+-	Follow the instructions on the ROS kinetic install tutorial page to install Full-Desktop Version of ROS Kinetic. The full-version would help you install Gazebo as well. 
+-	Ensure successful installation by running Gazebo via your terminal window:
+```
+gazebo
+```
+-	Make sure that turtlebot3 packages have been installed on your machine using the following commands:
+``` 
 
-##### Compiling
+```
 ....
 Run on terminal: 
 ```
@@ -84,7 +98,7 @@ This will create an executable named ```astar```.
 
 ##### Running the program 
 
-Runthe following commands on the terminal: 
+Run the following commands on the terminal: 
 ```
 cd <catkin workspace>
 source devel/setup.bash
