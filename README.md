@@ -52,7 +52,7 @@ The code is written in C++ in Astar_diff_phase3.cpp.
 - Go to the location of this directory.
 - Run the following commands on terminal:  
 ```
-cd Implementation-of-Astar-algorithm
+cd Implementation-of-Astar-algorithm/astar_simulation
 cmake ./
 make
 ```
@@ -62,8 +62,8 @@ make
 
 To run the program run ```./astar``` in the command line.
 
-##### Video simulation
-
+<!-- ##### Video simulation
+ -->
 
 
 ### PHASE 4
@@ -83,6 +83,24 @@ In this phase, Turtlebot3 is simulated in Gazebo.
 ```
 gazebo
 ```
+- create a catkin worlspace in your computer
+- navigate to your workspace with 
+```
+cd $(path to your workspace)/src
+```
+download Turtlebot3 packages into this file
+```
+git clone https://github.com/ROBOTIS-GIT/turtlebot3_msgs.git
+git clone https://github.com/ROBOTIS-GIT/turtlebot3.git
+git clone https://github.com/ROBOTIS-GIT/turtlebot3_simulations.git
+```
+- copy the ```astar``` folder (not astar_simulation) provided into ```$(path to your workspace)/src```  along with the other turtlebot packages
+- build your workspace and source the setup.bash file
+```
+cd ..
+catkin_make
+source devel/setup.bash
+```
 -	Make sure that turtlebot3 packages have been installed on your machine using the following commands:
 ``` 
 roslaunch turtlebot3_gazebo turlebot3_empty_world.launch
@@ -90,28 +108,9 @@ roslaunch turtlebot3_gazebo turlebot3_empty_world.launch
 This should launch a window of Gazebo simulator with the turtlebot. If an error pops up upon launching, install the necessary turtlebot3 packages.
 
 ##### Run
-Switch to your _src_ subdirectory of your ROS workspace to clone this repository.
+To run the roslaunch file do the following with any changes in the arguments
 ```
-<ROS workspace>/src
-git clone <url of the repository>
-```
-Open terminal and run the following commands: 
-```
-cd <ROS workspace>
-source devel/setup.bash
-catkin_make
-```
-This creates an executable named ```astar```.
-.......
-```
-export TURTLEBOT3_MODEL=burger
-roslaunch astar turtlebot3_map_p4.launch
-```
-Run the following commands on another terminal: 
-```
-cd <ROS workspace>
-source devel/setup.bash
-rosrun astar astar
-```
+roslaunch astar turtlebot3_custom_map.launch x_pos:=-4 y_pos:=-4 theta:=0 x_pos_f:=4 y_pos_f:=4 clearance:=0 rpm1:=30 rpm2:=40
 
-##### Video simulation
+```
+<!-- ##### Video simulation -->
