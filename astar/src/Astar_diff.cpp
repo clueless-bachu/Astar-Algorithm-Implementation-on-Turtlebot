@@ -1,14 +1,15 @@
 #include<bits/stdc++.h>
-#include "opencv2/opencv.hpp"
+#include<unistd.h>
+// #include "opencv2/opencv.hpp"
 #include<cmath>
-// #include <tf/transform_broadcaster.h>
+#include <tf/transform_broadcaster.h>
 #define PI 3.14159265
-// #include "ros/ros.h"
+#include "ros/ros.h"
 // #include <nav_msgs/Odometry.h>
-// #include <geometry_msgs/Twist.h>
+#include <geometry_msgs/Twist.h>
 
 using namespace std;
-using namespace cv;
+// using namespace cv;
 
 
 
@@ -40,13 +41,13 @@ using priority_q = priority_queue<tuple<float, vector<float>>,
 using tple = tuple<float, vector<float>>;
 
 	
-Scalar ScalarHSV2BGR(uchar H, uchar S, uchar V)
-{
-    Mat rgb;
-    Mat hsv(1,1, CV_8UC3, Scalar(H,S,V));
-    cvtColor(hsv, rgb, COLOR_HSV2BGR);
-    return Scalar(rgb.data[0], rgb.data[1], rgb.data[2]);
-}
+// Scalar ScalarHSV2BGR(uchar H, uchar S, uchar V)
+// {
+//     Mat rgb;
+//     Mat hsv(1,1, CV_8UC3, Scalar(H,S,V));
+//     cvtColor(hsv, rgb, COLOR_HSV2BGR);
+//     return Scalar(rgb.data[0], rgb.data[1], rgb.data[2]);
+// }
 
 vector<float> img_to_cart(float i, float j)
 {
@@ -100,7 +101,7 @@ bool in_square3(vector<float> state,float r=0,float c=0)
     return x>=3.25-r-c && x<=4.75+r+c && y>= -0.75-r-c && y<= 0.75+r+c;
 }
 
-bool in_obstacle(vector<float> state, float r=0, float c=0)
+bool in_obstacle(const vector<float>& state, float r=0, float c=0)
 {
     /*
     Checks whether the state is inside the obstacle space
@@ -143,7 +144,7 @@ vector<float> bin(vector<float> state, float scale1 = 0.05, float scale2= 8/PI)
 
  
 vector<vector<float>> get_children(vector<float> state, float rpm1, float rpm2,const float &r,const float &c ,
-const float &wr ,const float &L, float dt = 1)
+	const float &wr ,const float &L, float dt = 1)
 {
     /*
     Explores the child nodes
@@ -165,7 +166,7 @@ const float &wr ,const float &L, float dt = 1)
     float velocity[8][2] = {{0,rpm1},{rpm1,0},{rpm1,rpm1},{0,rpm2},{rpm2,0},{rpm2,rpm2},{rpm1,rpm2},{rpm2,rpm1}}; // 8 action spaces
     vector<vector<float>> children;
 	float ul, ur,omega, i_radius, iccx, iccy;
-    std::vector<float> new_state(3);
+    std::vector<float> new_state(5);
 	
     for(int i=0; i< 8;++i)
     {
@@ -182,20 +183,23 @@ const float &wr ,const float &L, float dt = 1)
         else
         {
             omega = (ur-ul)/L ;
-        i_radius = (ur+ul)/(2*omega);
+	        i_radius = (ur+ul)/(2*omega);
 
-        iccx = state[0]- i_radius*sin(state[2]);
-        iccy = state[1]+ i_radius*cos(state[2]);
+	        iccx = state[0]- i_radius*sin(state[2]);
+	        iccy = state[1]+ i_radius*cos(state[2]);
 
-        new_state[0] = (state[0]-iccx)*cos(omega*dt)-(state[1]-iccy)*sin(omega*dt)+iccx;//state[0]+(0.5*wr)*(ul+ur)*cos(state[2])*dt;                                
-        new_state[1] = (state[0]-iccx)*sin(omega*dt)+(state[1]-iccy)*cos(omega*dt)+iccy;//state[1]+(0.5*wr)*(ul+ur)*sin(state[2])*dt;                                
-        new_state[2] = omega*dt+state[2];//state[2]+(wr/L)*(ur-ul)*dt;   
+	        new_state[0] = (state[0]-iccx)*cos(omega*dt)-(state[1]-iccy)*sin(omega*dt)+iccx;//state[0]+(0.5*wr)*(ul+ur)*cos(state[2])*dt;                                
+	        new_state[1] = (state[0]-iccx)*sin(omega*dt)+(state[1]-iccy)*cos(omega*dt)+iccy;//state[1]+(0.5*wr)*(ul+ur)*sin(state[2])*dt;                                
+	        new_state[2] = omega*dt+state[2];//state[2]+(wr/L)*(ur-ul)*dt;   
         }
 
                                                     
         while(new_state[2]<-PI) new_state[2] += 2*PI;
         while(new_state[2]>PI) new_state[2] -=2*PI; 
-        // printf("angle:%f\n", new_state[2]);
+
+        new_state[3] = ul/wr;
+        new_state[4] = ur/wr;
+        
         if(!in_obstacle(new_state,r,c))
         {
             children.push_back(new_state);
@@ -247,10 +251,9 @@ const float &r,const float &c, const float &wr, const float &l, float rpm_1,  fl
     if(in_obstacle(goal) || in_obstacle(start))
     {
         cout<<"Check your inputs"<<endl;
-        exit(0);
-        // vector<float> tmp;
-        // tuple<vector_map,  vector3d, vector<float> > path(backtrack, memory,tmp);
-        // return path;
+        vector<float> tmp;
+        tuple<vector_map,  vector3d, vector<float> > path(backtrack, memory,tmp);
+        return path;
     }
     unsigned int count =0 ;
     while(!q.empty())
@@ -258,7 +261,7 @@ const float &r,const float &c, const float &wr, const float &l, float rpm_1,  fl
 
         tie (cost, cur_state) = q.top();
         q.pop();
-        // printf("cur_state: %f\t%f\t%f\n",cur_state[0],cur_state[1],cur_state[2]);
+        
 
         if(euclidean_dist(cur_state,goal)<=thresh) 
         {
@@ -298,88 +301,82 @@ const float &r,const float &c, const float &wr, const float &l, float rpm_1,  fl
 }
 
 
-// class actuator
-// { 
-// private:
-// 	ros::Publisher pub;
-// 	// ros::Subscriber sub;
-// 	ros::NodeHandle n;
-// 	// control::Actuator angles;
-// 	// bool flag;
-// 	// float par, gait[12];
-// 	// std::queue<Eigen::Vector3f> pos;
+class actuator
+{ 
+private:
+	ros::Publisher pub;
+	ros::NodeHandle n;
 
-// public:
-// 	actuator(void)
-// 	{
-// 		pub = n.advertise<geometry_msgs::Twist>("/cmd_vel",1);
-// 		// sub = n.subscribe("/gps", 1, &actuator::callback,this);
-// 	}
+public:
+	actuator(void)
+	{
 
-// 	void actuatorcb(void)
-// 	{
-// 		//pub.publish();
-// 		// ros::spinOnce();
-// 		geometry_msgs::Twist msg;
-// 		msg.linear.x = -0.1;
-// 		// msg.linear.y = -0.1;
+		pub = n.advertise<geometry_msgs::Twist>("/cmd_vel",1);
+		// sub = n.subscribe("/gps", 1, &actuator::callback,this);
+	}
 
-// 		msg.angular.z = 1;
+	void actuatorcb(float rpml,float rpmr,float wr,float L)
+	{
+		// wr = 0.33;
+		// L = 0.9;
+		float ur, ul, v, omega, i_radius;
+		ur = rpmr*wr;
+		ul = rpml*wr;
+		if (rpml == rpmr)
+		{
+	 		v = ur;
+			omega = 0;
+		}		
+		else 
+		{		
+			omega = (ur-ul)/L ;
+	       	i_radius = (ur+ul)/(2*omega);
+			v = omega*i_radius;
+		 }
+		geometry_msgs::Twist msg;
+		msg.linear.x = v;
+		// msg.linear.y = -0.1;
 
-// 	    //publish the message
-// 	    pub.publish(msg);
+		msg.angular.z = omega;
+		// printf("%f %f\n",msg.linear.x,msg.angular.z);
+
+	    pub.publish(msg);
 
 
-// 	}
+	}
 
-// };
+};
 
-int main(int argc,char **argv)
+int main(int argc,char *argv[])
 {
 
-	// ros::init(argc,argv,"actuator");
-	// actuator bot;
+	
 //////////////////////////INITIALIZATION&INPUTS///////////////////////////////////////////////////////////////////////////
     float wr,l,r,c, thresh,rpm_1, rpm_2;
-    int scale=1;
+    ros::init(argc,argv,"actuator");
+	actuator bot;
     float x1,x2,y1,y2;
     vector<float> parent_img,parent_cart,child_img, child_cart;
-    Point_<float> parent,child;
     int speed;
-    vector<float> start(3), goal(3), last_node(3);
+    vector<float> start(5), goal(5), last_node(5);
     vector_map backtrack;
     vector3d memory;
 
-    r = 0.105; c = 0.2; wr = 0.033; l = 0.16;
-     // while (ros::ok())
-     // {
-     // 	bot.actuatorcb();
-     // 	ros::spinOnce();
-     // }
-    // cout<<"sc;
-    // cout<<"Please input the wheel radius and distance between wheels (L)"
-    // cin>>wr>>l;
-    cout<<
-    "Please input starting configuration as \"x y theta\" (without the quotes) where theta is in degrees\n";
-    cin>>start[0]>>start[1]>>start[2];
-    cout<<
-    "Please input goal configuration as \"x y theta\" (without the quotes) where theta is in degrees\n";
-    cin>>goal[0]>>goal[1]>>goal[2];
-    cout<<"Please input the threshold for reaching near the goal\n";
-    cin>>thresh;
-    cout<<"Please input the rpm1 and rpm2\n";
-    cin>>rpm_1>>rpm_2;
-    // cout<<"Please input simulation time step";
-    // cin>>dt;
-    
-    // start = {-4,-4,0}; goal = {-3,-4,0};
-    // thresh = 0.1;
-    // rpm_1 = 10; rpm_2 = 20;
-    // ang = ang*PI/    180;
+
+
+    start = {atof(argv[1]),atof(argv[2]), atof(argv[3]),0,0};
+    goal = {atof(argv[4]),atof(argv[5]),0,0,0};
+    r = 0.105; 
+    //c = 0.4;
+    wr = 0.033; l = 0.16;
+    c = atof(argv[6]);
+    // cout<<c<<endl;
+    rpm_1 = atof(argv[7]); rpm_2 = atof(argv[8]); 
+    thresh =0.1;
     start[2] = start[2]*PI/180;
-
-
-// //////////////////A* ALGORITHM////////////////////////////////////////////////////////////////////////////////////////////////
+    sleep(10);
+    cout<<"----------------------------Starting Planning------------------------\n";
+// // //////////////////A* ALGORITHM////////////////////////////////////////////////////////////////////////////////////////////////
     
     auto start_time = chrono::high_resolution_clock::now();
     tie(backtrack, memory, last_node) = a_star(start, goal,r,c,wr,l,rpm_1,rpm_2,thresh);
@@ -391,83 +388,28 @@ int main(int argc,char **argv)
          << duration.count() << " seconds" << endl;
 
 // ///////////////////VISUALISATION/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // cout<<memory.size();
 
-        Mat resized, img(500, 500, CV_8UC3, Scalar(255,255, 255));
-        namedWindow("A* in Action", WINDOW_AUTOSIZE);
 
-        for(int i = 0; i < img.rows; i++)
-        {
-            for(int j = 0; j < img.cols; j++)
-            {
-                vector<float> cords = img_to_cart(i,j);
-                vector<float> state = {cords[0],cords[1],0};
 
-                if(in_obstacle(state,r,c))
-                {
-                     Vec3b pixel = {0,0,0};
-                     img.at<Vec3b>(i, j)= pixel;
-                }
-            }
-        }
-        // imshow("A* in Action", img);
-        // waitKey(0);
-        speed = memory.size()/100+1;
+    goal = last_node;
+    vector<vector<float>> actions;
 
-        
-        resize(img, resized,Size(), scale,scale);
-    // //     // VideoWriter video("output.avi",VideoWriter::fourcc('M','J','P','G'),120, Size(300*scale, 200*scale));
-        cout<<backtrack.size()<<endl;
-        
-        for(auto node = 0; node< memory.size(); ++node)
-        {
-            x1 =  memory[node][memory[node].size()-1][0];
-            y1 =  memory[node][memory[node].size()-1][1];
-            // parent_cart = {x1,y1};
-            parent_img  = cart_to_img(x1,y1);
-            parent.x = parent_img[1]*scale;
-            parent.y = parent_img[0]*scale; 
+    while(goal!= start)
+    {
+        child_cart = backtrack[goal];
+        actions.push_back(child_cart);
+        goal = child_cart;
+    }
+    
 
-            for(int i=0;i< memory[node].size()-1;++i)
-            {
-                x2 =  memory[node][i][0];
-                y2 =  memory[node][i][1];
-                child_cart = {x1,y1};
-                child_img  = cart_to_img(x2,y2);
-                child.x = child_img[1]*scale;
-                child.y = child_img[0]*scale;
-                // printf("%f %f %f %f\n",child.x, child.y, parent.x, parent.y);
-                line(resized, parent, child,ScalarHSV2BGR((node/speed)%255,255, 255),1);
-                if(!(node%speed))
-                {
-                    // video.write(resized);
-                    imshow("A* in Action", resized);
-                    waitKey(10);
-                }
-            }
-        }
-        int count=0;
-        goal = last_node;
-        while(goal!= start)
-        {
-            child_cart = backtrack[goal];
-            parent_cart = goal;
-            parent_img  = cart_to_img(parent_cart[0],parent_cart[1]);
-            child_img  = cart_to_img(child_cart[0],child_cart[1]);
-            parent.x = parent_img[1]*scale;
-            parent.y = parent_img[0]*scale;
-            child.x = child_img[1]*scale;
-            child.y = child_img[0]*scale;
-            line(resized, parent, child,Scalar(0,0,0),2);
-            ++count;
-            // video.write(resized);
-            imshow("A* in Action", resized);
-            waitKey(1);
-            goal = child_cart;
-        }
-        // // video.release();
-        imshow("A* in Action", resized);
-        waitKey(1);     
-        cout<<count<<endl;
+    for(int i=actions.size()-1; i>=0; --i)
+    {
+        bot.actuatorcb(actions[i][3],actions[i][4],wr,l);
+		sleep(1.05);
+    }
+    cout<<"END\n"<<endl;
+    for(int i=0; i<10; ++i)
+    bot.actuatorcb(0,0,wr,l);       
+    
     return 0;
 }
