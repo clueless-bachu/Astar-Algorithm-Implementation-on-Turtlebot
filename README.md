@@ -89,34 +89,24 @@ roslaunch turtlebot3_gazebo turlebot3_empty_world.launch
 ```
 This should launch a window of Gazebo simulator with the turtlebot. If an error pops up upon launching, install the necessary turtlebot3 packages.
 
-##### Build
+##### Run
 Switch to your _src_ subdirectory of your ROS workspace to clone this repository.
 ```
 <ROS workspace>/src
+git clone <url of the repository>
 ```
-To build, run the following commands :
-.....
-
-
-.....
-Run on terminal: 
-```
-cd <ROS workspace>
-catkin_make
-```
-This will create an executable named ```astar```.
-
-
-##### Running the program 
-
-Run the following commands on the terminal: 
+Open terminal and run the following commands: 
 ```
 cd <ROS workspace>
 source devel/setup.bash
+catkin_make
+```
+This creates an executable named ```astar```.
+.......
+```
 export TURTLEBOT3_MODEL=burger
 roslaunch astar turtlebot3_map_p4.launch
 ```
-
 Run the following commands on another terminal: 
 ```
 cd <ROS workspace>
